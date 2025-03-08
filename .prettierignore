@@ -1,0 +1,8 @@
+src/assets
+node_modules
+.umi
+.umi-production
+*.hbs
+*.md
+
+*.svg

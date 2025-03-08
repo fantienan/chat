@@ -1,0 +1,14 @@
+.think {
+  position: relative;
+  color: #8b8b8b;
+  padding: 0 0 0 13px;
+  position: relative;
+}
+.think-bar {
+  border-left: 2px solid #cccfd3;
+  height: calc(100% - 10px);
+  margin-top: 5px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
