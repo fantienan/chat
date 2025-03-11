@@ -1,0 +1,76 @@
+{
+  "version": 8,
+  "name": "base_style",
+  "id": "base_style",
+  "glyphs": "https://www.dilinyun.com/resources/tzdt/vec_style/glyphs/{fontstack}/{range}.pbf",
+  "projection": {
+    "name": "globe"
+  },
+  "sources": {
+    "MAPZONE_GIS_CHINA_DEM": {
+      "type": "raster-dem",
+      "tileSize": 256,
+      "maxzoom": 13,
+      "tiles": [
+        "https://www.dilinyun.com/mapzonemapchina/bc36c2e6-a8bd-4e7b-927c-99f042ebbd57/{z}/{x}/{y}/tile.png"
+      ],
+      "minzoom": 1
+    },
+    "TIANDITU_IMAGE": {
+      "type": "raster",
+      "tileSize": 256,
+      "maxzoom": 18,
+      "tiles": [
+        "https://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t1.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t2.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t3.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t4.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t5.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t6.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t7.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa"
+      ],
+      "minzoom": 0
+    },
+    "TIANDITU_IMAGE_LABEL": {
+      "type": "raster",
+      "tileSize": 256,
+      "maxzoom": 18,
+      "tiles": [
+        "https://t0.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t1.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t2.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t3.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t4.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t5.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t6.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa",
+        "https://t7.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=333d6f9105e836b0b09bb84ff56a58aa"
+      ],
+      "minzoom": 0
+    }
+  },
+  "layers": [
+    {
+      "id": "TIANDITU_IMAGE",
+      "type": "raster",
+      "source": "TIANDITU_IMAGE",
+      "metadata": {
+        "baseLayer": true,
+        "zIndex": 1
+      }
+    },
+    {
+      "id": "TIANDITU_IMAGE_LABEL",
+      "type": "raster",
+      "source": "TIANDITU_IMAGE_LABEL",
+      "layout": {
+        "visibility": "none"
+      },
+      "metadata": {
+        "baseLayer": true,
+        "zIndex": 1000,
+        "top": true
+      }
+    }
+  ]
+}
