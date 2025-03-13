@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Map } from 'mapbox-gl';
-import { interceptRequest } from './utils';
+import { interceptRequest } from '@/utils';
 import { createStyles } from 'antd-style';
 
 const accessToken = 'placeholder';

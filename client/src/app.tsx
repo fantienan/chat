@@ -1,8 +1,8 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './app.css';
 import { createStyles } from 'antd-style';
-import Independent from './chat';
-import { useMap } from './map';
+import { Independent } from '@/components';
+import { useMap } from '@/pages';
 import { Button, Popover } from 'antd';
 import { Bot } from 'lucide-react';
 

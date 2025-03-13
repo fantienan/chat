@@ -19,7 +19,7 @@ import {
   SmileOutlined,
 } from '@ant-design/icons';
 import { Badge, Button, type GetProp, Space } from 'antd';
-import { chunk2Content } from './utils';
+import { chunk2Content } from '@/utils';
 import MarkdownIt from 'markdown-it';
 
 const md = MarkdownIt({ html: true, breaks: true });
@@ -189,7 +189,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 
 const { create } = request;
 
-const Independent: React.FC = () => {
+export const Independent: React.FC = () => {
   // ==================== Style ====================
   const { styles } = useStyle();
 
@@ -419,5 +419,3 @@ const Independent: React.FC = () => {
     </div>
   );
 };
-
-export default Independent;
