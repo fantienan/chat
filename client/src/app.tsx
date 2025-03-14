@@ -30,8 +30,8 @@ const useStyle = createStyles(({ token, css }) => {
 
 function App() {
   const { styles } = useStyle();
-  const { map, Map } = useMap();
-  console.log(map);
+  const { Map } = useMap();
+
   return (
     <div className={styles.container}>
       <Map />

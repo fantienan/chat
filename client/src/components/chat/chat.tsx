@@ -1,7 +1,7 @@
 import './chat.css';
 import { Attachments, Bubble, BubbleProps, Conversations, Prompts, Sender, Welcome, useXAgent, useXChat } from '@ant-design/x';
 import { createStyles } from 'antd-style';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { request } from './request';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
@@ -21,6 +21,11 @@ import {
 import { Badge, Button, type GetProp, Space } from 'antd';
 import { chunk2Content } from '@/utils';
 import MarkdownIt from 'markdown-it';
+import { useConnection } from '@/lib/hooks/useConnection';
+import { useAppContext } from '@/context';
+import { Root, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
+import { StdErrNotification } from '@/lib/notificationTypes';
+import { toast } from 'react-toastify';
 
 const md = MarkdownIt({ html: true, breaks: true });
 const renderMarkdown: BubbleProps['messageRender'] = (content) => (
@@ -190,8 +195,59 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 const { create } = request;
 
 export const Independent: React.FC = () => {
+  const { mcpGetConfig, PROXY_SERVER_URL } = useAppContext();
   // ==================== Style ====================
   const { styles } = useStyle();
+  const [command, setCommand] = useState<string>(() => {
+    return localStorage.getItem('lastCommand') || 'mcp-server-everything';
+  });
+  const [args, setArgs] = useState<string>(() => {
+    return localStorage.getItem('lastArgs') || '';
+  });
+
+  const [sseUrl] = useState<string>(() => {
+    return localStorage.getItem('lastSseUrl') || 'http://localhost:3001/sse';
+  });
+  const [transportType, setTransportType] = useState<'stdio' | 'sse'>(() => {
+    return (localStorage.getItem('lastTransportType') as 'stdio' | 'sse') || 'stdio';
+  });
+  const [notifications, setNotifications] = useState<ServerNotification[]>([]);
+  const [stdErrNotifications, setStdErrNotifications] = useState<StdErrNotification[]>([]);
+  const [roots, setRoots] = useState<Root[]>([]);
+  const [env, setEnv] = useState<Record<string, string>>({});
+  const [bearerToken, setBearerToken] = useState<string>(() => {
+    return localStorage.getItem('lastBearerToken') || '';
+  });
+
+  const nextRequestId = useRef(0);
+  const rootsRef = useRef<Root[]>([]);
+
+  const {
+    connectionStatus,
+    serverCapabilities,
+    mcpClient,
+    requestHistory,
+    makeRequest: makeConnectionRequest,
+    sendNotification,
+    handleCompletion,
+    completionsSupported,
+    connect: connectMcpServer,
+  } = useConnection({
+    transportType,
+    command,
+    args,
+    sseUrl,
+    env,
+    bearerToken,
+    proxyServerUrl: PROXY_SERVER_URL,
+    onNotification: (notification) => {
+      setNotifications((prev) => [...prev, notification as ServerNotification]);
+    },
+    onStdErrNotification: (notification) => {
+      setStdErrNotifications((prev) => [...prev, notification as StdErrNotification]);
+    },
+    getRoots: () => rootsRef.current,
+  });
 
   // ==================== State ====================
   const [headerOpen, setHeaderOpen] = React.useState(false);
@@ -367,12 +423,31 @@ export const Independent: React.FC = () => {
       <span>Ant Design X</span>
     </div>
   );
+  useEffect(() => {
+    if (sseUrl) {
+      setTransportType('sse');
+      toast.success('Successfully authenticated with OAuth');
+    }
+    connectMcpServer();
+  }, []);
 
   useEffect(() => {
-    fetch(`/api/tags`)
-      .then((res) => res.json())
-      .then((data) => console.log(data));
+    mcpGetConfig()
+      .then((data) => {
+        setEnv(data.defaultEnvironment);
+        if (data.defaultCommand) {
+          setCommand(data.defaultCommand);
+        }
+        if (data.defaultArgs) {
+          setArgs(data.defaultArgs);
+        }
+      })
+      .catch((error) => console.error('Error fetching default environment:', error));
   }, []);
+
+  useEffect(() => {
+    rootsRef.current = roots;
+  }, [roots]);
 
   // ==================== Render =================
   return (

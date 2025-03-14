@@ -45,9 +45,6 @@ importers:
       prettier-plugin-packagejson:
         specifier: ^2.5.10
         version: 2.5.10(prettier@3.5.3)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
       typescript:
         specifier: ^5.8.2
         version: 5.8.2
@@ -173,6 +170,9 @@ importers:
       '@types/ws':
         specifier: ^8.18.0
         version: 8.18.0
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
 
 packages:
 
