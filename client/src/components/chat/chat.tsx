@@ -1,12 +1,11 @@
 import './chat.css';
-import { Attachments, Bubble, BubbleProps, Conversations, Prompts, Sender, Welcome, useXAgent, useXChat } from '@ant-design/x';
+import { Attachments, Bubble, Conversations, Prompts, Sender, Suggestion, Welcome, useXAgent, useXChat } from '@ant-design/x';
 import { createStyles } from 'antd-style';
 import React, { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { request } from './request';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-
 import {
+  BulbOutlined,
   CloudUploadOutlined,
   CommentOutlined,
   EllipsisOutlined,
@@ -19,25 +18,47 @@ import {
   SmileOutlined,
 } from '@ant-design/icons';
 import { Badge, Button, type GetProp, Space } from 'antd';
-import { chunk2Content } from '@/utils';
 import MarkdownIt from 'markdown-it';
 import { useConnection } from '@/lib/hooks/useConnection';
 import { useAppContext } from '@/context';
-import { Root, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolResultSchema,
+  CreateMessageRequest,
+  CreateMessageResult,
+  Root,
+  ServerNotification,
+} from '@modelcontextprotocol/sdk/types.js';
 import { StdErrNotification } from '@/lib/notificationTypes';
 import { toast } from 'react-toastify';
+import { useMCPAConcepts } from '@/lib/hooks/useMCPAConcepts';
+import { useMCPServerParameter } from '@/lib/hooks/useMCPServerParameter';
+import { useSyncReference } from '@/lib/hooks/useSyncReference';
+import { Chunk2MessageResult, useChunk } from '@/lib/hooks/useChunk';
+import { useRequestParameter } from '@/lib/hooks/useRequestParameter';
+import { MessageInfo } from '@ant-design/x/es/use-x-chat';
 
-const md = MarkdownIt({ html: true, breaks: true });
-const renderMarkdown: BubbleProps['messageRender'] = (content) => (
-  <div className="__9999" dangerouslySetInnerHTML={{ __html: md.render(content) }} />
-);
-
+type PendingRequest = {
+  id: number;
+  request: CreateMessageRequest;
+};
+type MessageRecord = {
+  role: 'user' | 'system';
+  content: string;
+};
+type SystemPrompts = {
+  name: string;
+  description: string;
+  messages: MessageRecord[];
+};
+type SuggestionItems = Exclude<GetProp<typeof Suggestion, 'items'>, () => void>;
 const renderTitle = (icon: React.ReactElement, title: string) => (
   <Space align="start">
     {icon}
     <span>{title}</span>
   </Space>
 );
+
+const suggestions: SuggestionItems = [{ label: '创建表', value: 'createTable' }];
 
 const defaultConversationsItems = [{ key: uuidv4(), label: `New Conversation` }];
 
@@ -176,61 +197,31 @@ const senderPromptsItems: GetProp<typeof Prompts, 'items'> = [
   },
 ];
 
-const roles: GetProp<typeof Bubble.List, 'roles'> = {
-  ai: {
-    placement: 'start',
-    typing: { step: 5, interval: 20 },
-    styles: {
-      content: {
-        borderRadius: 16,
-      },
-    },
-  },
-  local: {
-    placement: 'end',
-    variant: 'shadow',
-  },
-};
-
-const { create } = request;
-
+const md = MarkdownIt({ html: true, breaks: true });
 export const Independent: React.FC = () => {
-  const { mcpGetConfig, PROXY_SERVER_URL } = useAppContext();
-  // ==================== Style ====================
+  const { mcpGetConfig, PROXY_SERVER_URL, request, model } = useAppContext();
   const { styles } = useStyle();
-  const [command, setCommand] = useState<string>(() => {
-    return localStorage.getItem('lastCommand') || 'mcp-server-everything';
-  });
-  const [args, setArgs] = useState<string>(() => {
-    return localStorage.getItem('lastArgs') || '';
-  });
-
-  const [sseUrl] = useState<string>(() => {
-    return localStorage.getItem('lastSseUrl') || 'http://localhost:3001/sse';
-  });
-  const [transportType, setTransportType] = useState<'stdio' | 'sse'>(() => {
-    return (localStorage.getItem('lastTransportType') as 'stdio' | 'sse') || 'stdio';
-  });
   const [notifications, setNotifications] = useState<ServerNotification[]>([]);
   const [stdErrNotifications, setStdErrNotifications] = useState<StdErrNotification[]>([]);
-  const [roots, setRoots] = useState<Root[]>([]);
+  const [roots] = useState<Root[]>([]);
   const [env, setEnv] = useState<Record<string, string>>({});
-  const [bearerToken, setBearerToken] = useState<string>(() => {
-    return localStorage.getItem('lastBearerToken') || '';
-  });
-
   const nextRequestId = useRef(0);
-  const rootsRef = useRef<Root[]>([]);
+  const rootsRef = useSyncReference(roots);
+  const messagesMemo = useSyncReference<MessageInfo<string>[]>([]);
+  const SystemPromptsParameter = useRef<MessageRecord[]>([]);
+  const { bearerToken, setArgs, setCommand, command, args, sseUrl, transportType } = useMCPServerParameter();
+  const [, setPendingSampleRequests] = useState<
+    Array<
+      PendingRequest & {
+        resolve: (result: CreateMessageResult) => void;
+        reject: (error: Error) => void;
+      }
+    >
+  >([]);
 
   const {
     connectionStatus,
-    serverCapabilities,
-    mcpClient,
-    requestHistory,
     makeRequest: makeConnectionRequest,
-    sendNotification,
-    handleCompletion,
-    completionsSupported,
     connect: connectMcpServer,
   } = useConnection({
     transportType,
@@ -246,8 +237,18 @@ export const Independent: React.FC = () => {
     onStdErrNotification: (notification) => {
       setStdErrNotifications((prev) => [...prev, notification as StdErrNotification]);
     },
+    onPendingRequest: (request, resolve, reject) => {
+      setPendingSampleRequests((prev) => [...prev, { id: nextRequestId.current++, request, resolve, reject }]);
+    },
     getRoots: () => rootsRef.current,
   });
+
+  const { listTools, tools: _tools, callTool, prompts: _prompts } = useMCPAConcepts({ makeConnectionRequest });
+  const { chunk2Message, parseToolCallArguments } = useChunk();
+  const tools = useSyncReference(_tools);
+  const prompts = useSyncReference(_prompts);
+  const { getParameter } = useRequestParameter();
+  const [systemPrompts, setSystemPrompts] = useState<SystemPrompts[]>([]);
 
   // ==================== State ====================
   const [headerOpen, setHeaderOpen] = React.useState(false);
@@ -262,26 +263,47 @@ export const Independent: React.FC = () => {
 
   const { interimTranscript, finalTranscript, resetTranscript, listening } = useSpeechRecognition();
 
+  const callTools = useSyncReference(async (toolCalls: Chunk2MessageResult['toolCalls']) => {
+    const toolResults = await Promise.all(toolCalls.map((tool) => callTool(tool.name, tool.arguments)));
+    return toolResults.reduce(
+      (prev, toolResult) => {
+        if ('content' in toolResult) {
+          const parsedResult = CallToolResultSchema.safeParse(toolResult);
+          if (parsedResult.success) {
+            prev.prompts = (parsedResult.data.content[0]?._meta as any)?.prompts;
+            prev.message += parsedResult.data.content.map((content) => content.text).join('\n');
+          } else {
+            console.error('Error parsing tool result:', parsedResult.error);
+          }
+        }
+        return prev;
+      },
+      { message: '' } as { message: string; prompts?: SystemPrompts[] },
+    );
+  });
   // ==================== Runtime ====================
   const [agent] = useXAgent({
-    request: async ({ message }, { onUpdate, onSuccess }) => {
-      let content = '';
-      create(
+    request: async ({ message }, { onUpdate, onSuccess, onError }) => {
+      const result: Chunk2MessageResult = { message: '', toolCalls: [] };
+      const msgs = [...SystemPromptsParameter.current, { role: 'user', content: message }];
+      SystemPromptsParameter.current = [];
+      request.create(
         {
-          messages: [{ role: 'user', content: message }],
-          stream: true,
+          messages: msgs,
+          ...getParameter(model, { tools: tools.current, prompts: prompts.current }),
         },
         {
-          onSuccess: () => {
-            console.log('success', content);
-            onSuccess(content);
+          onSuccess: async () => {
+            const toolResults = await callTools.current(parseToolCallArguments(result.toolCalls));
+            onSuccess(result.message + toolResults.message);
+            if (toolResults.prompts) setSystemPrompts(toolResults.prompts);
           },
           onError: (error) => {
-            console.log('error', error);
+            onError(error);
           },
           onUpdate: (chunk) => {
-            content += chunk2Content(chunk);
-            onUpdate(content);
+            chunk2Message(model, chunk, result);
+            onUpdate(result.message);
           },
         },
         new TransformStream<string, string>({
@@ -292,16 +314,8 @@ export const Independent: React.FC = () => {
       );
     },
   });
-
   const { onRequest, messages, setMessages } = useXChat({ agent });
-
-  useEffect(() => {
-    if (activeKey !== undefined) setMessages([]);
-  }, [activeKey]);
-
-  useEffect(() => {
-    if (finalTranscript !== '') setContent(finalTranscript);
-  }, [interimTranscript, finalTranscript]);
+  messagesMemo.current = messages;
 
   const speechRecognition = (nextRecording: boolean) => {
     if (nextRecording) {
@@ -321,6 +335,10 @@ export const Independent: React.FC = () => {
   };
 
   const onPromptsItemClick: GetProp<typeof Prompts, 'onItemClick'> = (info) => {
+    const systemMessages = (info.data as any).messages;
+    if (systemMessages) {
+      SystemPromptsParameter.current = systemMessages;
+    }
     onRequest(info.data.description as string);
   };
 
@@ -359,25 +377,28 @@ export const Independent: React.FC = () => {
       <Prompts
         title="Do you want?"
         items={placeholderPromptsItems}
-        styles={{
-          list: {
-            width: '100%',
-          },
-          item: {
-            flex: 1,
-          },
-        }}
+        styles={{ list: { width: '100%' }, item: { flex: 1 } }}
         onItemClick={onPromptsItemClick}
       />
     </Space>
   );
-  const items: GetProp<typeof Bubble.List, 'items'> = messages.map(({ id, message, status }) => ({
-    key: id,
-    // loading: status === 'loading',
-    role: status === 'local' ? 'local' : 'ai',
-    messageRender: renderMarkdown,
-    content: message,
-  }));
+
+  const items: GetProp<typeof Bubble.List, 'items'> = messages.map((params) => {
+    const { id, message, status } = params;
+    if (typeof id === 'string' && id.startsWith('prompts-')) {
+      return {
+        key: id,
+        role: 'prompts',
+        content: (params as any).content,
+      };
+    }
+    return {
+      key: id,
+      // loading: status === 'loading',
+      role: status === 'local' ? 'local' : 'ai',
+      content: message,
+    };
+  });
 
   const attachmentsNode = (
     <Badge dot={attachedFiles.length > 0 && !headerOpen}>
@@ -413,6 +434,29 @@ export const Independent: React.FC = () => {
     </Sender.Header>
   );
 
+  const roles: GetProp<typeof Bubble.List, 'roles'> = {
+    ai: {
+      placement: 'start',
+      typing: { step: 5, interval: 20 },
+      styles: {
+        content: {
+          borderRadius: 16,
+        },
+      },
+      messageRender: (content) => <div dangerouslySetInnerHTML={{ __html: md.render(content) }} />,
+    },
+    local: {
+      placement: 'end',
+      variant: 'shadow',
+    },
+    prompts: {
+      placement: 'start',
+      // avatar: { icon: <UserOutlined />, style: { visibility: 'hidden' } },
+      variant: 'borderless',
+      messageRender: (items) => <Prompts onItemClick={onPromptsItemClick} items={items as any} />,
+    },
+  };
+
   const logoNode = (
     <div className={styles.logo}>
       <img
@@ -424,12 +468,67 @@ export const Independent: React.FC = () => {
     </div>
   );
   useEffect(() => {
-    if (sseUrl) {
-      setTransportType('sse');
-      toast.success('Successfully authenticated with OAuth');
+    if (connectionStatus === 'connected') {
+      listTools();
+      // listPrompts();
     }
-    connectMcpServer();
-  }, []);
+  }, [connectionStatus]);
+  useEffect(() => {
+    if (command) {
+      if (sseUrl && transportType === 'stdio') {
+        toast.success('Successfully authenticated with OAuth');
+      }
+      connectMcpServer();
+    }
+  }, [command]);
+
+  useEffect(() => {
+    if (stdErrNotifications.length > 0) {
+      const errorMessage = stdErrNotifications.reduce((prev, notification) => {
+        return prev + notification.params.content;
+      }, '');
+      toast.error(errorMessage);
+    }
+  }, [stdErrNotifications]);
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const historyMessage = notifications.reduce((prev, notification) => {
+        return prev + notification.method + '\n';
+      }, '');
+      console.info(historyMessage);
+    }
+  }, [notifications]);
+
+  useEffect(() => {
+    if (activeKey !== undefined) setMessages([]);
+  }, [activeKey]);
+
+  useEffect(() => {
+    if (systemPrompts.length > 0) {
+      const promptItems: GetProp<typeof Prompts, 'items'> = systemPrompts.map((prompts) => ({
+        key: prompts.name,
+        description: prompts.description,
+        messages: prompts.messages,
+        icon: <BulbOutlined style={{ color: '#FFD700' }} />,
+      }));
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `prompts-${uuidv4()}`,
+          status: 'success',
+          message: '',
+          role: 'prompts',
+          content: promptItems,
+        },
+      ]);
+      setSystemPrompts([]);
+    }
+  }, [systemPrompts]);
+
+  useEffect(() => {
+    if (finalTranscript !== '') setContent(finalTranscript);
+  }, [interimTranscript, finalTranscript]);
 
   useEffect(() => {
     mcpGetConfig()
@@ -444,10 +543,6 @@ export const Independent: React.FC = () => {
       })
       .catch((error) => console.error('Error fetching default environment:', error));
   }, []);
-
-  useEffect(() => {
-    rootsRef.current = roots;
-  }, [roots]);
 
   // ==================== Render =================
   return (
@@ -476,20 +571,57 @@ export const Independent: React.FC = () => {
         />
         {/* 🌟 提示词 */}
         <Prompts items={senderPromptsItems} onItemClick={onPromptsItemClick} />
-        {/* 🌟 输入框 */}
-        <Sender
-          allowSpeech={{
-            recording: listening,
-            onRecordingChange: speechRecognition,
+        <Suggestion
+          items={suggestions}
+          onSelect={(itemVal) => {
+            setContent((perv) => perv + itemVal);
           }}
-          value={content}
-          header={senderHeader}
-          onSubmit={onSubmit}
-          onChange={setContent}
-          prefix={attachmentsNode}
-          loading={agent.isRequesting()}
-          className={styles.sender}
-        />
+        >
+          {({ onTrigger, onKeyDown }) => {
+            return (
+              <Sender
+                allowSpeech={{
+                  recording: listening,
+                  onRecordingChange: speechRecognition,
+                }}
+                value={content}
+                header={senderHeader}
+                onSubmit={onSubmit}
+                onChange={(nextValue) => {
+                  if (nextValue === '/') {
+                    onTrigger();
+                  } else if (!nextValue) {
+                    onTrigger(false);
+                  }
+                  setContent(nextValue);
+                }}
+                placeholder="可任意输入 / 与 # 多次获取建议"
+                prefix={attachmentsNode}
+                loading={connectionStatus !== 'connected' ? true : agent.isRequesting()}
+                disabled={connectionStatus === 'disconnected'}
+                className={styles.sender}
+                onKeyDown={onKeyDown}
+                // components={{
+                //   input: ({ autoSize, ...resetProps }) => {
+                //     console.log(resetProps);
+                //     return (
+                //       <Select
+                //         mode="tags"
+                //         variant="borderless"
+                //         onSearch={setContent}
+                //         placeholder="可任意输入 / 与 # 多次获取建议"
+                //         style={{ width: '100%' }}
+                //         open={false}
+                //         searchValue={content}
+                //         {...resetProps}
+                //       />
+                //     );
+                //   },
+                // }}
+              />
+            );
+          }}
+        </Suggestion>
       </div>
     </div>
   );

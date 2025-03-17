@@ -191,7 +191,7 @@ export function useConnection({
     try {
       const client = new Client<Request, Notification, Result>(
         {
-          name: 'mcp-inspector',
+          name: 'mapzone/client',
           version: packageJson.version,
         },
         {
@@ -227,10 +227,7 @@ export function useConnection({
 
       const clientTransport = new SSEClientTransport(backendUrl, {
         eventSourceInit: {
-          fetch: (url, init) => {
-            debugger;
-            return fetch(url, { ...init, headers });
-          },
+          fetch: (url, init) => fetch(url, { ...init, headers }),
         },
         requestInit: {
           headers,
@@ -251,7 +248,6 @@ export function useConnection({
         await client.connect(clientTransport);
       } catch (error) {
         console.error('Failed to connect to MCP server:', error);
-        debugger;
         const shouldRetry = await handleAuthError(error);
         if (shouldRetry) {
           return connect(undefined, retryCount + 1);

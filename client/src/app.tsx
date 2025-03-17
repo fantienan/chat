@@ -5,6 +5,7 @@ import { Independent } from '@/components';
 import { useMap } from '@/pages';
 import { Button, Popover } from 'antd';
 import { Bot } from 'lucide-react';
+import { useState } from 'react';
 
 const useStyle = createStyles(({ token, css }) => {
   return {
@@ -30,12 +31,13 @@ const useStyle = createStyles(({ token, css }) => {
 
 function App() {
   const { styles } = useStyle();
+  const [openChat, setOpenChat] = useState(false);
   const { Map } = useMap();
 
   return (
     <div className={styles.container}>
-      <Map />
-      <Popover trigger="click" content={<Independent />}>
+      {/* <Map /> */}
+      <Popover trigger="click" open={openChat} onOpenChange={setOpenChat} content={<Independent />}>
         <Button className={styles.bot} icon={<Bot />} type="default" shape="circle" />
       </Popover>
     </div>
