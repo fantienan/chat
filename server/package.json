@@ -3,27 +3,34 @@
   "version": "0.6.0",
   "type": "module",
   "bin": {
-    "mcp-server": "build/index.js"
+    "mcp-server": "build/bin.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "dev:bin": "tsx watch --clear-screen=false src/bin.ts --env tsx --args=src/mcp.ts",
+    "dev:server": "tsx watch --clear-screen=false src/sse.ts",
     "dev:windows": "tsx watch --clear-screen=false src/index.ts < NUL",
+    "inspect": "npx @modelcontextprotocol/inspector tsx src/test.ts",
     "start": "node build/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "ws": "^8.18.1"
+    "shell-quote": "^1.8.2",
+    "spawn-rx": "^5.1.2",
+    "ws": "^8.18.1",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/ws": "^8.18.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
   }
 }
